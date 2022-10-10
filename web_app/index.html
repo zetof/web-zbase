@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="core/main.css">
+    <script type="text/javascript" src="core/panel.js"></script>
+    <script type="text/javascript" src="core/boundaries.js"></script>
+    <script type="text/javascript" src="core/event.js"></script>
+    <script type="text/javascript" src="core/events_dispatcher.js"></script>
+    <script type="text/javascript" src="core/midi.js"></script>
+    <script type="text/javascript" src="core/color.js"></script>
+    <script type="text/javascript" src="core/group.js"></script>
+    <script type="text/javascript" src="core/switch.js"></script>
+    <script type="text/javascript" src="core/selector.js"></script>
+    <script type="text/javascript" src="core/pad.js"></script>
+    <script type="text/javascript" src="core/knob.js"></script>
+    <script type="text/javascript" src="core/led.js"></script>
+  </head>
+  <body>
+    <script>
+
+      // Create main panel and general event dispatcher
+      var z_base = new Panel();
+      var e_d = new EventsDispatcher(z_base);
+
+      // Define the midi sender through websocket integration
+      var processMidiFeedback = function(args){
+        if(args[0] == "ppq"){
+          if(args[1] == 0 && playing == 1) speed_knob.blink();
+        }
+      }
+      midi = new Midi({callback:processMidiFeedback});
+
+      // Definition of colors
+      var on_color = new Color(52, 152, 219);
+      var on_bright_color = new Color(133, 193, 233);
+
+      // Definition of groups
+      var controls = new Group({panel:z_base, x:20, y:30, width:325 , height:145, caption:"MIDI CLOCK"});
+
+      // Controls Group
+      var changeClockSpeed = function(val) {
+        if(clock_mode == 0) midi.send(["settempo", val]);
+        clock_speed = val;
+      }
+      var speed_knob = new Knob({panel:z_base, group:controls, eventsDispatcher:e_d, callback:changeClockSpeed, x:150, y: 15, size:105, val:60, min:20, max:330, onColor:on_color, caption:"TEMPO"});
+      var clock_speed = speed_knob.getVal();
+      midi.send(["settempo", clock_speed]);
+      var mode_leds = [];
+      mode_leds.push(new Led({panel:z_base, group:controls, eventsDispatcher:e_d, x:15, y:20, width:20, height:10, val:1, onColor:on_bright_color, caption:"LIVE"}));
+      mode_leds.push(new Led({panel:z_base, group:controls, eventsDispatcher:e_d, x:15, y:40, width:20, height:10, onColor:on_bright_color, caption:"ONSEND"}));
+      var clock_mode = 0;
+      var changeClockMode = function(val) {
+        if(val == 1){
+          mode_leds[clock_mode].off();
+          clock_mode = (clock_mode < 1)?clock_mode+1:0;
+          mode_leds[clock_mode].on();
+        }
+      }
+      var mode_pad = new Pad({panel:z_base, group:controls, eventsDispatcher:e_d, callback:changeClockMode, x:95, y:15, width:40, height:40, mode:1, onColor:on_color, caption:"MODE"});
+      var playPause = function(val) {
+        playing = val;
+        if(val == 0) midi.send(["stop"]);
+        else midi.send(["continue"]);
+      }
+      var play_pause_pad = new Pad({panel:z_base, group:controls, eventsDispatcher:e_d, callback:playPause, x:25, y:80, width:40, height:40, val:1, onColor:on_color, caption:'PLAY/PAUSE'});
+      var playing = play_pause_pad.getVal();
+      if(playing == 1) midi.send(["start"]);
+      var rewind = function(val) {
+        if(val == 1) midi.send(["start"]);
+      }
+      var rewind_pad = new Pad({panel:z_base, group:controls, eventsDispatcher:e_d, callback:rewind, x:95, y:80, width:40, height:40, mode:1, onColor:on_color, caption:"REWIND"});
+      var lastTap = Date.now();
+      var setTempoByTap = function(val) {
+        if(val == 1){
+          let now = Date.now();
+          let delay = now - lastTap;
+          if(delay <= 3000){
+            clock_speed = clock_speed + Math.round(60000 / delay);
+            if(clock_speed > 330) clock_speed = 330;
+            speed_knob.setVal(clock_speed);
+            midi.send(["settempo", clock_speed]);
+          }
+          lastTap = now;          
+        }
+      }
+      var tap_pad = new Pad({panel:z_base, group:controls, eventsDispatcher:e_d, callback:setTempoByTap, x:270, y:15, width:40, height:40, mode:1, onColor:on_color, caption:"TAP"});
+      var sendTempo = function(val) {
+        midi.send(["settempo", clock_speed]);
+      }
+      var send_pad = new Pad({panel:z_base, group:controls, eventsDispatcher:e_d, callback:sendTempo, x:270, y:80, width:40, height:40, mode:1, onColor:on_color, caption:"SEND"});
+    </script>
+  </body>
+</html>
