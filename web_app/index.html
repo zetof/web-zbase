@@ -10,8 +10,6 @@
     <script type="text/javascript" src="core/midi.js"></script>
     <script type="text/javascript" src="core/color.js"></script>
     <script type="text/javascript" src="core/group.js"></script>
-    <script type="text/javascript" src="core/switch.js"></script>
-    <script type="text/javascript" src="core/selector.js"></script>
     <script type="text/javascript" src="core/pad.js"></script>
     <script type="text/javascript" src="core/knob.js"></script>
     <script type="text/javascript" src="core/led.js"></script>
@@ -76,7 +74,7 @@
           let now = Date.now();
           let delay = now - lastTap;
           if(delay <= 3000){
-            clock_speed = clock_speed + Math.round(60000 / delay);
+            clock_speed = Math.round(60000 / delay);
             if(clock_speed > 330) clock_speed = 330;
             speed_knob.setVal(clock_speed);
             midi.send(["settempo", clock_speed]);
